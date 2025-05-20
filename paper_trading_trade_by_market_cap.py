@@ -21,10 +21,11 @@ log_path.mkdir(parents=True, exist_ok=True)
 log_file = log_path / "all_trades.csv"
 if not log_file.exists():
     headers = ["timestamp", "token", "action", "price", "amount_invested",
-               "amount_returned", "gain_loss_usd", "gain_loss_pct"]
+               "amount_returned", "gain_loss_usd", "gain_loss_pct", "net_worth"]
     pd.DataFrame(columns=headers).to_csv(log_file, index=False)
 
-def log_trade(timestamp, token, action, price, amount_invested, amount_returned, gain_loss_usd, gain_loss_pct):
+
+def log_trade(timestamp, token, action, price, amount_invested, amount_returned, gain_loss_usd, gain_loss_pct, net_worth):
     entry = {
         "timestamp": [timestamp.strftime("%Y-%m-%d %H:%M:%S")],
         "token": [token],
@@ -33,7 +34,8 @@ def log_trade(timestamp, token, action, price, amount_invested, amount_returned,
         "amount_invested": [round(amount_invested, 2) if amount_invested else 0],
         "amount_returned": [round(amount_returned, 2) if amount_returned else 0],
         "gain_loss_usd": [round(gain_loss_usd, 2) if gain_loss_usd else 0],
-        "gain_loss_pct": [round(gain_loss_pct, 2) if gain_loss_pct else 0]
+        "gain_loss_pct": [round(gain_loss_pct, 2) if gain_loss_pct else 0],
+        "net_worth": [round(net_worth, 2)]
     }
     pd.DataFrame(entry).to_csv(log_file, mode='a', header=False, index=False)
 
@@ -112,7 +114,6 @@ class PaperTradingSimulator:
             if not isinstance(coins, list) or not coins:
                 break
             total_fetched += len(coins)
-            # print(f"Fetched {len(coins)} coins from offset {offset}")
             for coin in coins:
                 mint = coin.get("mint")
                 usd_mc = coin.get("usd_market_cap") or coin.get("market_cap")
@@ -135,15 +136,17 @@ class PaperTradingSimulator:
             if current_time >= t.buy_time + timedelta(minutes=HOLD_DURATION_MIN):
                 res = t.sell(prices.get(t.token, t.buy_price), current_time)
                 self.balance += res["amount_returned"]
+                # Log sell with net worth
                 log_trade(current_time, t.token, "sell",
                           res["sell_price"], 0,
                           res["amount_returned"],
-                          res["gain_loss_usd"], res["gain_loss_pct"])
+                          res["gain_loss_usd"], res["gain_loss_pct"], self.balance)
                 sign = "+" if res["gain_loss_pct"] >= 0 else ""
                 print(f"BOUGHT {t.token} at ${t.buy_price:.6f} | "
                       f"SOLD at ${res['sell_price']:.6f} | "
                       f"{sign}{res['gain_loss_pct']:.2f}% | P/L "
                       f"{sign}${abs(res['gain_loss_usd']):.2f}")
+                print(f"Total Net Worth: ${self.balance:.2f}")
                 self.active_trade = None
 
         # BUY logic
@@ -158,8 +161,9 @@ class PaperTradingSimulator:
                     self.balance -= total_cost
                     self.active_trade = Trade(token, price, current_time, invest_amt)
                     log_trade(current_time, token, "buy",
-                              price, invest_amt, 0, 0, 0)
+                              price, invest_amt, 0, 0, 0, self.balance)
                     print(f"Buying {token} at ${price:.6f} (Invested ${invest_amt:.2f}, Fee ${fee_buy:.2f})")
+                    print(f"Remaining Balance: ${self.balance:.2f}")
                     break
 
     def run(self, total_minutes=None):
@@ -171,6 +175,10 @@ class PaperTradingSimulator:
             current_time += timedelta(minutes=1)
             count += 1
             time.sleep(60)
+
+# Usage example:
+# sim = PaperTradingSimulator(INITIAL_BALANCE, mode="live")
+# sim.run(total_minutes=1)
 
 if __name__ == '__main__':
     sim = PaperTradingSimulator(INITIAL_BALANCE, mode="live")
