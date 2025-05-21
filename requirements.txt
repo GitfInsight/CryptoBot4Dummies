@@ -1,0 +1,12 @@
+--extra-index-url https://download.pytorch.org/whl/cu118
+torch
+torchvision
+torchaudio
+pandas
+numpy
+ccxt
+vectorbt
+gluonts
+lightning 
+pyarrow
+fastparquet
