@@ -1,0 +1,6 @@
+conda create -n deepare \
+  -c rapidsai -c nvidia -c conda-forge -c pytorch \
+  python=3.10 \
+  cudatoolkit=11.8 cudf=24.04 \
+  pytorch torchvision torchaudio pytorch-cuda=11.8 \
+  pandas numpy ccxt vectorbt gluonts
